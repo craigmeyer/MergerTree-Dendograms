@@ -1,4 +1,5 @@
 import numpy as np
+import time
 import h5py
 
 def convSFToMTF(startSnap, endSnap, fieldsDict, fn):
@@ -49,8 +50,8 @@ def LoadSFIntoMTF(startSnap, endSnap, fieldsDict, fn, HALOIDVAL = 1000000000000)
 	        tid = tree_id[snap_inds[ihalo]] # ID of the tree this halo is in
 	        pind = tree_main_prog[snap_inds[ihalo]] # Index within this tree of the progenitor
 	        dind = tree_desc[snap_inds[ihalo]] # Index within this tree of the descendant
-	        pid = np.where(np.where((host_tree_id == tid) & (snapnum == progSnap))[0] == pind)[0] # Progenitor index in progSnap
-	        did = np.where(np.where((host_tree_id == tid) & (snapnum == descSnap))[0] == dind)[0] # Descendant index in descSnap
+	        pid = np.where(np.where((tree_id == tid) & (snapnum == progSnap))[0] == pind)[0] # Progenitor index in progSnap
+	        did = np.where(np.where((tree_id == tid) & (snapnum == descSnap))[0] == dind)[0] # Descendant index in descSnap
 	        
 	        if pid.size == 0: # We've hit the head (root) of a branch
 	            pid = -1
@@ -71,24 +72,24 @@ def LoadSFIntoMTF(startSnap, endSnap, fieldsDict, fn, HALOIDVAL = 1000000000000)
 	    
 	    # Halo property fields (e.g. position, velocity, mass, radius)
 	    for field in otherFields:
-	        MTFdata[snapKey][field] = hf['TreeHalos'][field][()][snap_inds]
-	        
-	        # Convert to appropriate units (comoving length, physical vel, Mpc, km/s, 10^10 Msun)
-	        params = hf['Parameters'].attrs
-	        hubble = params['HubbleParam']
-	        cm_to_Mpc = 3.085678e24
-	        cmpers_to_kmpers = 1e5
-	        msun_to_gram = 1.989e33
+	    	fieldValue = fieldsDict[field][0]
+	    	MTFdata[snapKey][field] = hf['TreeHalos'][fieldValue][()][snap_inds]
 
+	    	# Convert to appropriate units (comoving length, physical vel, Mpc, km/s, 10^10 Msun)
+	    	params = hf['Parameters'].attrs
+	    	hubble = params['HubbleParam']
+	    	cm_to_Mpc = 3.085678e24
+	    	cmpers_to_kmpers = 1e5
+	    	msun_to_gram = 1.989e33
 
-	        if field == 'Pos': # Convert to cMpc
-	            MTFdata[snapKey][field] *= 1 / hubble * params['UnitLength_in_cm'] / cm_to_Mpc
-	        elif field[0] == 'V': # Convert to pkm/s
-	            MTFdata[snapKey][field] *= scale_fac[isnap]**0.5 * params['UnitVelocity_in_cm_per_s'] / cmpers_to_kmpers
-	        elif field[0] == 'M': # Convert to 10^10Msun
-	            MTFdata[snapKey][field] *= 1 / hubble * params['UnitMass_in_g'] / (1e10 * msun_to_gram)
-	        elif field[0] == 'R': # Convert to cMpc
-	            MTFdata[snapKey][field] *= 1 / hubble * params['UnitLength_in_cm'] / cm_to_Mpc
+	    	if field == 'Pos': # Convert to cMpc
+	    		MTFdata[snapKey][field] *= 1 / hubble * params['UnitLength_in_cm'] / cm_to_Mpc
+	    	elif field[0] == 'V': # Convert to pkm/s
+	    		MTFdata[snapKey][field] *= scale_fac[isnap]**0.5 * params['UnitVelocity_in_cm_per_s'] / cmpers_to_kmpers
+	    	elif field[0] == 'M': # Convert to 10^10Msun
+	    		MTFdata[snapKey][field] *= 1 / hubble * params['UnitMass_in_g'] / (1e10 * msun_to_gram)
+	    	elif field[0] == 'R': # Convert to cMpc
+	    		MTFdata[snapKey][field] *= 1 / hubble * params['UnitLength_in_cm'] / cm_to_Mpc
 
 	hf.close()
 
@@ -107,8 +108,7 @@ def convToMTF(startSnap, endSnap, MTFdata, HALOIDVAL = 1000000000000):
         
         snapKey = 'Snap_%03d' % snap
         isnap = snap - startSnap
-        snap_inds = np.where(snapnum == isnap)[0]
-        numhalos = snap_inds.size
+        numhalos = len(MTFdata[snapKey]['HaloID'])
         
         for ihalo in range(numhalos):
             
@@ -156,8 +156,7 @@ def convToMTF(startSnap, endSnap, MTFdata, HALOIDVAL = 1000000000000):
         
         snapKey = 'Snap_%03d' % snap
         isnap = snap - startSnap
-        snap_inds = np.where(snapnum == isnap)[0]
-        numhalos = snap_inds.size
+        numhalos = len(MTFdata[snapKey]['HaloID'])
         
         for ihalo in range(numhalos):
             
@@ -193,6 +192,8 @@ def convToMTF(startSnap, endSnap, MTFdata, HALOIDVAL = 1000000000000):
         
         print("Done snap", snap, "in", time.time() - start)
                 
-    print("Done setting EndDescendants in", time.time() - totstart)    
+    print("Done setting EndDescendants in", time.time() - totstart)
+
+    return MTFdata
                 
 

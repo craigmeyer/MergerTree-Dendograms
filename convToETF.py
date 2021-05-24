@@ -1,12 +1,12 @@
 import sys
 sys.path.append(sys.argv[0].replace("convToETF.py",""))
-from convTreesToETF import convVELOCIraptor,convAHFparallel,convMillenium,convRockstar
+from convTreesToETF import convVELOCIraptor,convAHFparallel,convMillenium,convRockstar,convSF
 from ETFio import WriteETFCatalogue
 from ReadConfig import  ETFoptions
 import h5py
 import os
 
-availableConverters = ["VEL","AHF","Rock","Mill"]
+availableConverters = ["VEL","AHF","Rock","Mill","SF"]
 
 if(len(sys.argv)<3):
 	raise SystemExit("No format of the merger tree parse. Usage: convToETF.py <merger tree format> <convToETF.cfg>")
@@ -190,11 +190,11 @@ elif(sys.argv[1] == "SF"):
 	print("Loading in the fields " + " ".join([field[0] for field in fieldsDict.values()]))
 
 	# Do the conversion
-	redshift, treedata = convSF.convSFToMTF(opt.startSnap, opt.endSnap, fieldsDict, opt.SFtreefilename)
+	Redshift, treedata = convSF.convSFToMTF(opt.startSnap, opt.endSnap, fieldsDict, opt.SFtreefilename)
 
 
 
-WriteETFCatalogue(sys.argv[1],opt,treedata,Redshift,fieldsDict)
+WriteETFCatalogue(sys.argv[1], opt, treedata, Redshift, fieldsDict)
 
 
 
