@@ -5,25 +5,25 @@
 startSnap = 0
 
 #Ending snapshot
-endSnap = 50
+endSnap = 199
 
 #Number of snapshots in the simulation
-Nsnaps = 51
+Nsnaps = 200
 
 # h value
-h = 0.678
+h = 0.6751
 
 # Boxsize in Mpc
-boxsize = 20 # 20 Mpc/h
+boxsize = 40
 
 # Number to make the ID's temporally unique
 HALOIDVAL = 1000000000000
 
 # Mass field to use as default
-MassDef = SubhaloMass
+MassDef = Mass_200crit
 
 # Radius field to use as default
-RDef = SubhaloHalfMassRad
+RDef = R_200crit
 
 # Extra fields that are desired, must be name of the dataset(s) and seperated by commas
 ExtraFields = 
@@ -32,7 +32,7 @@ ExtraFields =
 ExtraFieldsDtype = 
 
 # full path + name of the .ETF.tree.hdf file to be created
-outfilename = /mnt/su3ctm/cmeyer/Dendogram-data/SF
+outfilename = /mnt/su3ctm/rpoulton/Dendogram-data/VEL.WW
 
 ########### Halofinders/ Treebuilders specifics #################
 
@@ -67,8 +67,3 @@ Rockfilelist = Rockstar_filelist.txt
 
 #The Milliumum catalogue name, not working
 Millfilename = 
-
-########## SubFind ##########
-
-# Where the SubFind merger tree is located
-SFtreefilename = /mnt/su3ctm/cmeyer/L20N128/tree/trees.hdf5

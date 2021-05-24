@@ -150,6 +150,7 @@ class ETFoptions(object):
 		self.AHFtreefilelist = ""
 		self.Rockfilelist = ""
 		self.Millfilename = ""
+		self.SFtreefilename = ""
 
 		with open(filename,"r") as f:
 
@@ -235,6 +236,12 @@ class ETFoptions(object):
 				elif(line[0]=="Millfilename"):
 					if(MTF=="Mill"):
 						self.Millfilename = line[1]
+
+				# SubFind specifics
+
+				elif line[0] == "SFtreefilename":
+					if MTF == "SF":
+						self.SFtreefilename = line[1]
 
 				else:
 					raise OSError("Invalid config option %s, please only use the options in the sample config file" %line[0])

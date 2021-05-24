@@ -159,6 +159,39 @@ elif(sys.argv[1]=="Mill"):
 
 	treedata = convMillenium.convMilleniumToMTF(opt.Millfilename,opt.Nsnaps,snapKey,scalefactorKey,fieldsDict)
 
+elif(sys.argv[1] == "SF"):
+	####################################################################################
+
+
+					# Converting SubFind format
+
+	####################################################################################
+
+	print("Doing the conversion of SubFind into ETF")
+
+	fieldsDict = {}
+	# The required keys - DO NOT CHANGE THESE!
+	fieldsDict["HaloID"] = ["", "int64"]
+	fieldsDict["StartProgenitor"] = ["", "int64"] 
+	fieldsDict["Progenitor"] = ["", "int64"]
+	fieldsDict["Descendant"] = ["", "int64"]
+	fieldsDict["EndDescendant"] = ["", "int64"]
+	fieldsDict["Pos"] = ["SubhaloPos", "float32"]
+	fieldsDict["Vel"] = ["SubhaloVel", "float32"]
+	fieldsDict["HostHaloID"] = ["GroupNr", "int64"]
+	fieldsDict["Mass"] = ["SubhaloMass", "float32"]
+	fieldsDict["Radius"] = ["SubhaloHalfmassRad", "float32"]
+
+	# Add in the extra fields into the fieldsDict
+	for field, dtype in zip(opt.ExtraFields, opt.ExtraFieldsDtype):
+	    if field not in fieldsDict:
+	        fieldsDict[field] = [field, dtype]
+
+	print("Loading in the fields " + " ".join([field[0] for field in fieldsDict.values()]))
+
+	# Do the conversion
+	redshift, treedata = convSF.convSFToMTF(opt.startSnap, opt.endSnap, fieldsDict, opt.SFtreefilename)
+
 
 
 WriteETFCatalogue(sys.argv[1],opt,treedata,Redshift,fieldsDict)
