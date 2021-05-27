@@ -178,7 +178,7 @@ elif(sys.argv[1] == "SF"):
 	fieldsDict["EndDescendant"] = ["", "int64"]
 	fieldsDict["Pos"] = ["SubhaloPos", "float32"]
 	fieldsDict["Vel"] = ["SubhaloVel", "float32"]
-	fieldsDict["HostHaloID"] = ["GroupNr", "int64"]
+	fieldsDict["HostHaloID"] = ["", "int64"]
 	fieldsDict["Mass"] = ["SubhaloMass", "float32"]
 	fieldsDict["Radius"] = ["SubhaloHalfmassRad", "float32"]
 
