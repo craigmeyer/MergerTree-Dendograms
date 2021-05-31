@@ -11,6 +11,61 @@ def convSFToMTF(startSnap, endSnap, fieldsDict, fn):
 
 	return redshift, MTFdata
 
+def readSFHaloProperties(filename, desiredGroupFields, desiredSubhaloFields):
+    
+    halofile = h5py.File(filename, 'r')
+    
+    # Read in header
+    # NOTE: Assumes only one file per snapshot
+    # todo: Expand functionality to handle snapshots split over multiple files
+    header = halofile['Header'].attrs
+    numHalos = np.uint64(header['Ngroups_ThisFile'])
+    numSubhalos = header['Nsubhalos_ThisFile']
+    
+    # Read in FOF group data
+    groupData = halofile['Group']
+    fieldNames = []
+    fieldTypes = []
+    
+    # Load only the specified fields if any are passed
+    if len(desiredGroupFields) > 0:
+        fieldNames = desiredGroupFields
+        fieldTypes = [groupData[field].dtype for field in fieldNames]
+    else:
+        fieldNames = [str(key) for key in groupData.keys()]
+        fieldTypes = [groupData[field].dtype for field in fieldNames]
+    numFields = len(fieldNames)
+    
+    # Create group dictionary
+    groupCatalog = {}
+    for i in range(numFields):
+        catValue = fieldNames[i]
+        if numHalos > 0:
+            groupCatalog[catValue] = [np.array(groupData[catValue][:numHalos])]
+    
+    # Read in subhalo data
+    subhaloData = halofile['Subhalo']
+    fieldNames = []
+    fieldTypes = []
+    
+    # Load only the specified fields if any are passed
+    if len(desiredSubhaloFields) > 0:
+        fieldNames = desiredSubhaloFields
+        fieldTypes = [subhaloData[field].dtype for field in fieldNames]
+    else:
+        fieldNames = [str(key) for key in subhaloData.keys()]
+        fieldTypes = [subhaloData[field].dtype for field in fieldNames]
+    numFields = len(fieldNames)
+    
+    # Create subhalo dictionary
+    subhaloCatalog = {}
+    for i in range(numFields):
+        catValue = fieldNames[i]
+        if numSubhalos > 0:
+            subhaloCatalog[catValue] = [np.array(subhaloData[catValue][:numSubhalos])]
+    
+    return groupCatalog, subhaloCatalog
+
 
 def LoadSFIntoMTF(startSnap, endSnap, fieldsDict, fn, HALOIDVAL = 1000000000000):
 
@@ -33,6 +88,17 @@ def LoadSFIntoMTF(startSnap, endSnap, fieldsDict, fn, HALOIDVAL = 1000000000000)
 	tree_main_prog = hf['TreeHalos']['TreeMainProgenitor'][()]
 	tree_desc = hf['TreeHalos']['TreeDescendant'][()]
 
+	params = hf['Parameters'].attrs
+	hubble = params['HubbleParam']
+	length_unit = params['UnitLength_in_cm']
+	vel_unit = params['UnitVelocity_in_cm_per_s']
+	mass_unit = params['UnitMass_in_g']
+	cm_to_Mpc = 3.085678e24
+	cmpers_to_kmpers = 1e5
+	msun_to_gram = 1.989e33
+
+	hf.close()
+
 	for snap in range(startSnap, endSnap + 1):
 	    
 	    snapKey = 'Snap_%03d' % snap
@@ -40,9 +106,13 @@ def LoadSFIntoMTF(startSnap, endSnap, fieldsDict, fn, HALOIDVAL = 1000000000000)
 	    snap_inds = np.where(snapnum == isnap)[0]
 	    numhalos = snap_inds.size
 
-	    # Group IDs for each subhalo in isnap
-	    indexes = np.unique(host_id[snap_inds], return_index = True)[1]
-	    host_ids = np.array([host_id[snap_inds][index] for index in sorted(indexes)])
+	    catfilename = '/Users/craigmeyer/Documents/PhD/VELOCIraptor/L20N128/050/SF_HBT/fof_subhalo_tab_%03d.hdf5' % snap
+	    groupdata, subdata = readSFHaloProperties(catfilename, [], []) # Read in all fields
+
+	    # # Group IDs for each subhalo in isnap
+	    # indexes = np.unique(host_id[snap_inds], return_index = True)[1]
+	    # host_ids = np.array([host_id[snap_inds][index] for index in sorted(indexes)])
+	    MTFdata[snapKey]['HostHaloID'] = host_id[snap_inds]
 	    
 	    # Tree-related fields (i.e. progenitors and descendants)
 	    progSnap = isnap - 1
@@ -51,27 +121,28 @@ def LoadSFIntoMTF(startSnap, endSnap, fieldsDict, fn, HALOIDVAL = 1000000000000)
 
 	    	# Temporally unique HaloID
 	    	MTFdata[snapKey]['HaloID'].append(isnap * HALOIDVAL + len(MTFdata[snapKey]['HaloID']) + 1)
-	    	host_ind = np.where(host_ids == host_id[snap_inds][ihalo])[0][0] # Index of group halo in isnap
-	    	MTFdata[snapKey]['HostHaloID'].append(isnap * HALOIDVAL + host_ind + 1)
+	    	# host_ind = np.where(host_ids == host_id[snap_inds][ihalo])[0][0] # Index of group halo in isnap
+	    	# MTFdata[snapKey]['HostHaloID'].append(isnap * HALOIDVAL + host_ind + 1)
 
 	    	# If HaloID = HostHaloID then we are at a central subhalo, which represents the group in SF - set HostHaloID = -1
-	    	if(MTFdata[snapKey]['HaloID'][ihalo] == MTFdata[snapKey]['HostHaloID'][ihalo]):
+	    	# Set HostHaloID to -1 for a central subhalo, which represents the group in SF
+	    	if subdata['SubhaloRankInGr'][sh_id[snap_inds][ihalo]] == 0:
 	    		MTFdata[snapKey]['HostHaloID'][ihalo] = -1
 
 	    	# Locate progenitors and descendants
-	    	tid = tree_id[snap_inds[ihalo]] # ID of the tree this halo is in
-	    	pind = tree_main_prog[snap_inds[ihalo]] # Index within this tree of the progenitor
-	    	dind = tree_desc[snap_inds[ihalo]] # Index within this tree of the descendant
+	    	tid = tree_id[snap_inds[ihalo]] # ID of the branch this halo is in
+	    	pind = tree_main_prog[snap_inds[ihalo]] # Index within this branch of the progenitor
+	    	dind = tree_desc[snap_inds[ihalo]] # Index within this branch of the descendant
 	    	pid = np.where(np.where((tree_id == tid) & (snapnum == progSnap))[0] == pind)[0] # Progenitor index in progSnap
 	    	did = np.where(np.where((tree_id == tid) & (snapnum == descSnap))[0] == dind)[0] # Descendant index in descSnap
 
-	    	if pid.size == 0: # We've hit the head (root) of a branch
+	    	if pid.size == 0: # We've hit the tail (start) of a branch
 	    		pid = -1
 	    		MTFdata[snapKey]['Progenitor'].append(MTFdata[snapKey]['HaloID'][ihalo])
 	    	else:
 	    		progID = pid + 1 + progSnap * HALOIDVAL
 	    		MTFdata[snapKey]['Progenitor'].append(progID[0])
-	    	if did.size == 0: # We've hit the tail (end) of a branch
+	    	if did.size == 0: # We've hit the head (end) of a branch
 	    		did = -1
 	    		MTFdata[snapKey]['Descendant'].append(MTFdata[snapKey]['HaloID'][ihalo])
 	    	else:
@@ -80,38 +151,54 @@ def LoadSFIntoMTF(startSnap, endSnap, fieldsDict, fn, HALOIDVAL = 1000000000000)
 
 	    	MTFdata[snapKey]['StartProgenitor'].append(0)
 	    	MTFdata[snapKey]['EndDescendant'].append(0)
-	    
-	    
-	    # Halo property fields (e.g. position, velocity, mass, radius)
+
+	    # Halo property fields
 	    for field in otherFields:
-	    	fieldValue = fieldsDict[field][0]
-	    	MTFdata[snapKey][field] = hf['TreeHalos'][fieldValue][()][snap_inds]
+	    	MTFdata[snapKey][field] = subdata[field][sh_id[snap_inds]]
 
-	    	# Convert to appropriate units (comoving length, physical vel, Mpc, km/s, 10^10 Msun)
-	    	params = hf['Parameters'].attrs
-	    	hubble = params['HubbleParam']
-	    	cm_to_Mpc = 3.085678e24
-	    	cmpers_to_kmpers = 1e5
-	    	msun_to_gram = 1.989e33
-
-	    	if field == 'Pos': # Convert to cMpc
-	    		MTFdata[snapKey][field] *= 1 / hubble * params['UnitLength_in_cm'] / cm_to_Mpc
+	    	# Convert fields to appropraite units (cMpc, pkm/s, 10^10Msun)
+	    	if field[0] == 'P': # Pos field, convert to cMpc
+	    		MTFdata[snapKey][field] *= 1 / hubble * length_unit / cm_to_Mpc
 	    	elif field[0] == 'V': # Convert to pkm/s
-	    		MTFdata[snapKey][field] *= scale_fac[isnap]**0.5 * params['UnitVelocity_in_cm_per_s'] / cmpers_to_kmpers
-	    	elif field[0] == 'M': # Convert to 10^10Msun
-	    		MTFdata[snapKey][field] *= 1 / hubble * params['UnitMass_in_g'] / (1e10 * msun_to_gram)
+	    		MTFdata[snapKey][field] *= scale_fac[isnap]**0.5 * vel_unit / cmpers_to_kmpers
+	    	elif field[0] == 'M': # Convert to 10^10 Msun
+	    		MTFdata[snapKey][field] *= 1 / hubble * mass_unit / (1e10 * msun_to_gram)
 	    	elif field[0] == 'R': # Convert to cMpc
-	    		MTFdata[snapKey][field] *= 1 / hubble * params['UnitLength_in_cm'] / cm_to_Mpc
+	    		MTFdata[snapKey][field] *= 1 / hubble * length_unit / cm_to_Mpc
 
-	hf.close()
+
+
+
+	    # # Halo property fields (e.g. position, velocity, mass, radius)
+	    # for field in otherFields:
+	    # 	fieldValue = fieldsDict[field][0]
+	    # 	MTFdata[snapKey][field] = hf['TreeHalos'][fieldValue][()][snap_inds]
+
+	    # 	# Convert to appropriate units (comoving length, physical vel, Mpc, km/s, 10^10 Msun)
+	    # 	params = hf['Parameters'].attrs
+	    # 	hubble = params['HubbleParam']
+	    # 	cm_to_Mpc = 3.085678e24
+	    # 	cmpers_to_kmpers = 1e5
+	    # 	msun_to_gram = 1.989e33
+
+	    # 	if field == 'Pos': # Convert to cMpc
+	    # 		MTFdata[snapKey][field] *= 1 / hubble * params['UnitLength_in_cm'] / cm_to_Mpc
+	    # 	elif field[0] == 'V': # Convert to pkm/s
+	    # 		MTFdata[snapKey][field] *= scale_fac[isnap]**0.5 * params['UnitVelocity_in_cm_per_s'] / cmpers_to_kmpers
+	    # 	elif field[0] == 'M': # Convert to 10^10Msun
+	    # 		MTFdata[snapKey][field] *= 1 / hubble * params['UnitMass_in_g'] / (1e10 * msun_to_gram)
+	    # 	elif field[0] == 'R': # Convert to cMpc
+	    # 		MTFdata[snapKey][field] *= 1 / hubble * params['UnitLength_in_cm'] / cm_to_Mpc
+
+
 
 	#Convert everything into array for easy indexing
-	for snap in range(startSnap, endSnap+1):
+	for snap in range(startSnap, endSnap + 1):
 		snapKey = 'Snap_%03d' % snap
 		for field in MTFdata[snapKey].keys():
 			MTFdata[snapKey][field] = np.asarray(MTFdata[snapKey][field])
 
-	print("Done loading the data into EFT format in",time.time()-start)
+	print("Done loading the data into EFT format in", time.time() - start)
 
 	return redshift, MTFdata
 
