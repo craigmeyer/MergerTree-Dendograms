@@ -151,6 +151,8 @@ class ETFoptions(object):
 		self.Rockfilelist = ""
 		self.Millfilename = ""
 		self.SFtreefilename = ""
+		self.SFbasehalofilename = ""
+		self.SFbaselinkfilename = ""
 
 		with open(filename,"r") as f:
 
@@ -242,6 +244,14 @@ class ETFoptions(object):
 				elif line[0] == "SFtreefilename":
 					if MTF == "SF":
 						self.SFtreefilename = line[1]
+
+				elif line[0] == "SFbasehalofilename":
+					if MTF == "SF":
+						self.SFbasehalofilename = line[1]
+
+				elif line[0] == "SFbaselinkfilename":
+					if MTF == "SF":
+						self.SFbaselinkfilename = line[1]
 
 				else:
 					raise OSError("Invalid config option %s, please only use the options in the sample config file" %line[0])

@@ -190,7 +190,7 @@ elif(sys.argv[1] == "SF"):
 	print("Loading in the fields " + " ".join([field[0] for field in fieldsDict.values()]))
 
 	# Do the conversion
-	Redshift, treedata = convSF.convSFToMTF(opt.startSnap, opt.endSnap, fieldsDict, opt.SFtreefilename)
+	Redshift, treedata = convSF.convSFToMTF(opt.startSnap, opt.endSnap, fieldsDict, opt.SFtreefilename, opt.SFbasehalofilename)
 
 
 
